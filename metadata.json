@@ -1,0 +1,6 @@
+{
+  "name": "Thử Tài Đo Góc - Khám Phá Thước Ê-Ke",
+  "description": "Ứng dụng tương tác trực quan giúp học sinh tiểu học học cách đo và nhận biết góc vuông, góc không vuông bằng thước ê-ke xoay linh hoạt.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
