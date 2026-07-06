@@ -21,7 +21,12 @@ import {
   Trophy,
   History,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Settings,
+  Copy,
+  ExternalLink,
+  RefreshCw,
+  FileSpreadsheet
 } from 'lucide-react';
 import EkeGame from './components/EkeGame';
 import Playground from './components/Playground';
@@ -38,6 +43,113 @@ const AVATARS = [
   { char: '🐨', name: 'Gấu túi' },
   { char: '🦊', name: 'Cáo đỏ' },
 ];
+
+const APPS_SCRIPT_CODE = `function doGet(e) {
+  createTemplateSheet();
+  return HtmlService.createHtmlOutput(
+    '<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Kết nối Google Sheets thành công!</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background-color:#f1f5f9;color:#1e293b;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}card{background:white;padding:32px;border-radius:24px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1);max-width:480px;width:100%;text-align:center;border-top:8px solid #4f46e5}h1{color:#0f172a;margin-top:0;font-size:22px}p{line-height:1.6;font-size:14px;color:#64748b}button{background:#4f46e5;color:white;border:none;padding:12px 24px;border-radius:12px;font-weight:bold;cursor:pointer;margin-top:16px;transition:all 0.2s}button:hover{background:#4338ca}</style></head><body><card><h1>🎉 Cấu hình Google Sheets thành công!</h1><p>Hệ thống đã tự động tạo và định dạng Sheet mẫu mang tên <b>"Tổng hợp kết quả"</b>.</p><p>Thầy Cô / Phụ huynh hãy copy đường link trên thanh địa chỉ trình duyệt này và dán vào ứng dụng để kết nối lưu điểm nhé!</p><button onclick="window.close()">Đóng cửa sổ</button></card></body></html>'
+  );
+}
+
+function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("Tổng hợp kết quả") || ss.insertSheet("Tổng hợp kết quả");
+    var data = JSON.parse(e.postData.contents);
+    
+    setupHeaders(sheet);
+    
+    var nextRow = sheet.getLastRow() + 1;
+    var stt = nextRow - 1;
+    
+    sheet.appendRow([
+      stt,
+      data.studentName || "-",
+      data.className || "-",
+      data.score !== undefined ? data.score : 0,
+      data.totalQuestions !== undefined ? data.totalQuestions : 0,
+      data.correctCount !== undefined ? data.correctCount : 0,
+      data.wrongCount !== undefined ? data.wrongCount : 0,
+      data.duration || "-",
+      data.wrongQuestionsList || "-",
+      data.userAnswers || "-",
+      data.correctAnswers || "-",
+      data.timestamp || new Date().toLocaleString('vi-VN')
+    ]);
+    
+    formatSheet(sheet);
+    
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Đã lưu kết quả thành công!" }))
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({ 'Access-Control-Allow-Origin': '*' });
+      
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({ 'Access-Control-Allow-Origin': '*' });
+  }
+}
+
+function createTemplateSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Tổng hợp kết quả") || ss.insertSheet("Tổng hợp kết quả");
+  setupHeaders(sheet);
+  formatSheet(sheet);
+}
+
+function setupHeaders(sheet) {
+  if (sheet.getLastRow() === 0 || (sheet.getLastRow() === 1 && sheet.getRange(1,1).getValue() === "")) {
+    sheet.clear();
+    sheet.appendRow([
+      "STT",
+      "Họ tên",
+      "Lớp",
+      "Điểm số",
+      "Tổng số câu làm",
+      "Số câu đúng",
+      "Số câu sai",
+      "Thời gian làm bài",
+      "Danh sách câu trả lời sai",
+      "Đáp án học sinh chọn ở từng câu",
+      "Đáp án đúng tương ứng",
+      "Ngày giờ làm bài"
+    ]);
+  }
+}
+
+function formatSheet(sheet) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow === 0) return;
+  
+  var headerRange = sheet.getRange(1, 1, 1, 12);
+  headerRange.setFontWeight("bold")
+             .setFontSize(11)
+             .setBackground("#4f46e5")
+             .setFontColor("#ffffff")
+             .setHorizontalAlignment("center")
+             .setVerticalAlignment("middle");
+  
+  sheet.setRowHeight(1, 35);
+  
+  if (lastRow > 1) {
+    var dataRange = sheet.getRange(2, 1, lastRow - 1, 12);
+    dataRange.setFontSize(10)
+             .setVerticalAlignment("middle");
+             
+    var centerColumns = [1, 3, 4, 5, 6, 7, 8, 12];
+    centerColumns.forEach(function(col) {
+      sheet.getRange(2, col, lastRow - 1, 1).setHorizontalAlignment("center");
+    });
+  }
+  
+  var colWidths = [50, 160, 80, 80, 110, 100, 100, 150, 250, 250, 250, 160];
+  colWidths.forEach(function(width, index) {
+    sheet.setColumnWidth(index + 1, width);
+  });
+  
+  var textRanges = sheet.getRange(1, 9, lastRow, 3);
+  textRanges.setWrap(true);
+}`;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'practice' | 'playground'>('practice');
@@ -105,6 +217,200 @@ export default function App() {
 
   // Tắt/bật âm thanh
   const [isMuted, setIsMuted] = useState<boolean>(false);
+
+  // Cấu hình Google Sheets / Google Apps Script
+  const [appsScriptUrl, setAppsScriptUrl] = useState<string>(() => {
+    return localStorage.getItem('eke_apps_script_url') || (import.meta as any).env?.VITE_APPS_SCRIPT_URL || '';
+  });
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [syncMessage, setSyncMessage] = useState<string>('');
+  const [showTeacherSettingsModal, setShowTeacherSettingsModal] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
+
+  // Tự động gửi kết quả lên Google Sheets trong nền (silently) khi bấm Hoàn thành
+  useEffect(() => {
+    if (showCompleteModal && appsScriptUrl && studentProfile && history.length > 0) {
+      submitSummaryToSheetsBackground();
+    }
+  }, [showCompleteModal]);
+
+  const submitSummaryToSheetsBackground = async () => {
+    if (!appsScriptUrl || !studentProfile || history.length === 0) return;
+
+    try {
+      const elapsedMs = Date.now() - sessionStartTime;
+      const durationStr = formatDuration(elapsedMs);
+
+      const totalQs = history.length;
+      const correctQs = history.filter(h => h.isCorrect).length;
+      const wrongQs = history.filter(h => !h.isCorrect).length;
+
+      const wrongQuestionsList = history
+        .filter(h => !h.isCorrect)
+        .map(h => h.questionTitle)
+        .join(', ') || 'Không có';
+
+      const userAnswers = history
+        .map((h, i) => `${i + 1}. ${h.questionTitle} (${h.difficulty}): Bé chọn ${h.userAnswer}`)
+        .join('\n');
+
+      const correctAnswers = history
+        .map((h, i) => `${i + 1}. ${h.questionTitle}: ${h.correctType}`)
+        .join('\n');
+
+      const payload = {
+        action: 'submit_summary',
+        studentName: studentProfile.name,
+        className: studentProfile.className,
+        score: score,
+        totalQuestions: totalQs,
+        correctCount: correctQs,
+        wrongCount: wrongQs,
+        duration: durationStr,
+        wrongQuestionsList: wrongQuestionsList,
+        userAnswers: userAnswers,
+        correctAnswers: correctAnswers,
+        timestamp: new Date().toLocaleString('vi-VN')
+      };
+
+      await fetch(appsScriptUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain'
+        },
+        body: JSON.stringify(payload)
+      });
+      console.log('Tự động đồng bộ báo cáo học tập lên Google Sheets thành công!');
+    } catch (err) {
+      console.error('Lỗi tự động gửi báo cáo:', err);
+    }
+  };
+
+  useEffect(() => {
+    localStorage.setItem('eke_apps_script_url', appsScriptUrl);
+  }, [appsScriptUrl]);
+
+  // Trạng thái đang gửi báo cáo tổng hợp khi bấm nút thủ công
+  const [isSubmittingSummary, setIsSubmittingSummary] = useState<boolean>(false);
+
+  // Hàm gửi báo cáo tổng hợp kết quả lên Google Sheets
+  const submitSummaryToSheets = async () => {
+    if (!appsScriptUrl) {
+      alert('⚠️ Thầy Cô hoặc Phụ huynh chưa cấu hình URL Google Sheets. Vui lòng bấm vào nút "Lưu Sheets" ở góc trên để cấu hình trước nhé!');
+      return;
+    }
+    if (!studentProfile) return;
+
+    setIsSubmittingSummary(true);
+    setSyncStatus('syncing');
+    setSyncMessage('Đang nộp báo cáo tổng hợp...');
+
+    try {
+      const elapsedMs = Date.now() - sessionStartTime;
+      const durationStr = formatDuration(elapsedMs);
+
+      const totalQs = history.length;
+      const correctQs = history.filter(h => h.isCorrect).length;
+      const wrongQs = history.filter(h => !h.isCorrect).length;
+
+      const wrongQuestionsList = history
+        .filter(h => !h.isCorrect)
+        .map(h => h.questionTitle)
+        .join(', ') || 'Không có';
+
+      const userAnswers = history
+        .map((h, i) => `${i + 1}. ${h.questionTitle} (${h.difficulty}): Bé chọn ${h.userAnswer}`)
+        .join('\n');
+
+      const correctAnswers = history
+        .map((h, i) => `${i + 1}. ${h.questionTitle}: ${h.correctType}`)
+        .join('\n');
+
+      const payload = {
+        action: 'submit_summary',
+        studentName: studentProfile.name,
+        className: studentProfile.className,
+        score: score,
+        totalQuestions: totalQs,
+        correctCount: correctQs,
+        wrongCount: wrongQs,
+        duration: durationStr,
+        wrongQuestionsList: wrongQuestionsList,
+        userAnswers: userAnswers,
+        correctAnswers: correctAnswers,
+        timestamp: new Date().toLocaleString('vi-VN')
+      };
+
+      await fetch(appsScriptUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      setSyncStatus('success');
+      setSyncMessage('Đã gửi báo cáo thành công!');
+      sound.playSuccess();
+      alert('🎉 Chúc mừng bé! Kết quả học tập xuất sắc của bé đã được gửi trực tiếp đến Google Sheets của Thầy Cô/Phụ huynh thành công rồi đấy!');
+      setShowCompleteModal(false);
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    } catch (err) {
+      console.error(err);
+      setSyncStatus('error');
+      setSyncMessage('Gửi báo cáo thất bại.');
+      alert('❌ Có lỗi xảy ra khi gửi kết quả. Vui lòng kiểm tra lại kết nối mạng hoặc cấu hình URL Google Sheets.');
+      setTimeout(() => setSyncStatus('idle'), 4000);
+    } finally {
+      setIsSubmittingSummary(false);
+    }
+  };
+
+  // Hàm kiểm tra kết nối thử nghiệm
+  const testConnection = async (testUrl: string) => {
+    if (!testUrl) {
+      alert('Vui lòng nhập URL Apps Script trước!');
+      return;
+    }
+    
+    setSyncStatus('syncing');
+    setSyncMessage('Đang kết nối thử nghiệm...');
+    try {
+      const payload = {
+        studentName: studentProfile ? studentProfile.name : "Người chơi thử nghiệm",
+        className: studentProfile ? studentProfile.className : "Ba 1",
+        score: score,
+        questionTitle: "Thử nghiệm kết nối hệ thống",
+        difficulty: "Hệ thống",
+        isCorrect: "Đúng",
+        userAnswer: "Góc vuông",
+        correctType: "Góc vuông",
+        action: 'test',
+        timestamp: new Date().toLocaleString('vi-VN')
+      };
+
+      await fetch(testUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      setSyncStatus('success');
+      setSyncMessage('Kết nối thành công! Đã thêm một dòng thử nghiệm vào Google Sheet.');
+      sound.playSuccess();
+      setTimeout(() => setSyncStatus('idle'), 5000);
+    } catch (err) {
+      console.error(err);
+      setSyncStatus('error');
+      setSyncMessage('Kết nối thất bại. Hãy kiểm tra lại URL hoặc cài đặt quyền truy cập.');
+      setTimeout(() => setSyncStatus('idle'), 5000);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('eke_session_start_time', sessionStartTime.toString());
@@ -223,6 +529,17 @@ export default function App() {
             id="login-container"
           >
             <div className="bg-white rounded-3xl border-4 border-indigo-400 p-8 shadow-2xl max-w-md w-full relative overflow-hidden my-auto">
+              {/* Nút cài đặt cho Thầy Cô ở góc trên bên phải */}
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  setShowTeacherSettingsModal(true);
+                }}
+                className="absolute top-4 right-4 p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-slate-700 transition-all cursor-pointer border border-slate-200 z-20"
+                title="Cấu hình lưu điểm Google Sheets cho Giáo viên / Phụ huynh"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
               {/* Trang trí góc bong bóng dễ thương */}
               <div className="absolute -top-10 -right-10 w-24 h-24 bg-indigo-100 rounded-full opacity-60"></div>
               <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-100 rounded-full opacity-60"></div>
@@ -353,6 +670,19 @@ export default function App() {
                 >
                   <Check className="w-4 h-4 stroke-[3px]" />
                   <span>Hoàn thành</span>
+                </button>
+
+                {/* Nút Cài đặt cho Giáo viên / Phụ huynh */}
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    setShowTeacherSettingsModal(true);
+                  }}
+                  className="p-2 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-600 border border-blue-200 transition-all cursor-pointer flex items-center gap-1"
+                  title="Cấu hình lưu điểm Google Sheets cho Giáo viên/Phụ huynh"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden md:inline text-[10px] font-black">Lưu Sheets</span>
                 </button>
 
 
@@ -601,6 +931,21 @@ export default function App() {
                     🌟 Chúc mừng bé đã hoàn thành xuất sắc bài học hôm nay! Bé hãy tiếp tục ôn luyện để nâng cao điểm số và rèn luyện kỹ năng đo góc thật giỏi nhé!
                   </p>
                 </div>
+
+                {appsScriptUrl && (
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      submitSummaryToSheets();
+                    }}
+                    disabled={isSubmittingSummary}
+                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white rounded-2xl font-black text-sm cursor-pointer transition-all active:scale-95 shadow-md text-center flex items-center justify-center gap-2"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>{isSubmittingSummary ? 'Đang gửi kết quả...' : 'Gửi thủ công báo cáo lên Google Sheets 📊'}</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     sound.playClick();
@@ -612,6 +957,168 @@ export default function App() {
                 </button>
               </div>
 
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* KHUNG CẤU HÌNH DÀNH CHO GIÁO VIÊN / PHỤ HUYNH */}
+      <AnimatePresence>
+        {showTeacherSettingsModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl border-4 border-indigo-500 p-6 shadow-2xl max-w-xl w-full relative"
+              id="teacher-settings-modal"
+            >
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  setShowTeacherSettingsModal(false);
+                }}
+                className="absolute top-4 right-4 p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-2 mb-4">
+                <Settings className="w-6 h-6 text-indigo-600" />
+                <h3 className="text-lg font-black text-indigo-950">Cấu hình Google Sheets cho Thầy Cô / Phụ huynh</h3>
+              </div>
+
+              <p className="text-xs text-slate-500 font-semibold mb-4 leading-relaxed">
+                Để theo dõi và thống kê kết quả làm bài của học sinh, Thầy Cô / Phụ huynh hãy cấu hình liên kết với Google Sheets ở đây. Khi học sinh bấm <b>"Hoàn thành"</b> buổi học, kết quả sẽ tự động đồng bộ lên Sheets một cách lặng lẽ trong nền mà không làm phiền bé.
+              </p>
+
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl text-left flex flex-col gap-3.5 mb-4">
+                <div>
+                  <label className="text-xs font-black text-slate-700 block mb-1">
+                    🔗 URL Ứng dụng Web (Web App URL):
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="https://script.google.com/macros/s/.../exec"
+                      id="apps-script-url-input"
+                      defaultValue={appsScriptUrl}
+                      className="flex-1 px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none font-mono text-[11px] bg-white placeholder:text-slate-300"
+                    />
+                    <button
+                      onClick={() => {
+                        const val = (document.getElementById('apps-script-url-input') as HTMLInputElement)?.value.trim() || '';
+                        setAppsScriptUrl(val);
+                        sound.playSuccess();
+                        alert('✅ Đã lưu URL kết nối thành công!');
+                      }}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl cursor-pointer shadow-sm transition-all active:scale-95 whitespace-nowrap"
+                    >
+                      Lưu URL
+                    </button>
+                  </div>
+                </div>
+
+                {/* Các nút Chức năng thử nghiệm */}
+                {appsScriptUrl && (
+                  <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="text-[10px] font-bold text-emerald-600">Đã lưu liên kết</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => testConnection(appsScriptUrl)}
+                        className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-[10px] rounded-lg transition-all flex items-center gap-1"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Gửi thử nghiệm dòng dữ liệu
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm('Bạn chắc chắn muốn ngắt kết nối với Google Sheet này không?')) {
+                            setAppsScriptUrl('');
+                            const input = document.getElementById('apps-script-url-input') as HTMLInputElement;
+                            if (input) input.value = '';
+                            sound.playClick();
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-[10px] rounded-lg border border-rose-200 transition-all"
+                      >
+                        Ngắt kết nối
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {syncStatus !== 'idle' && (
+                  <div className={`p-2.5 rounded-xl text-center text-xs font-bold leading-normal ${
+                    syncStatus === 'syncing' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                    syncStatus === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                    'bg-rose-50 text-rose-700 border border-rose-200'
+                  }`}>
+                    {syncMessage}
+                  </div>
+                )}
+              </div>
+
+              {/* Hướng dẫn Apps Script tích hợp kèm mã */}
+              <div className="border-t border-slate-100 pt-4 text-left">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-extrabold text-xs text-slate-800 flex items-center gap-1">
+                    <span>📖</span> Hướng dẫn lấy liên kết trong 3 phút:
+                  </h4>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(APPS_SCRIPT_CODE);
+                      setCopied(true);
+                      sound.playSuccess();
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-[10px] rounded-lg border border-emerald-200 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{copied ? 'Đã sao chép code!' : 'Sao chép đoạn mã code.gs'}</span>
+                  </button>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 max-h-[180px] overflow-y-auto text-[10.5px] font-semibold text-slate-600 leading-relaxed space-y-2">
+                  <ol className="list-decimal list-inside space-y-1.5">
+                    <li>Vào <a href="https://sheets.google.com" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline inline-flex items-center gap-0.5 font-bold">Google Sheets <ExternalLink className="w-3 h-3" /></a>, tạo một Trang tính mới tinh.</li>
+                    <li>Trên menu, chọn <b>Tiện ích mở rộng (Extensions)</b> ➔ <b>Apps Script</b>.</li>
+                    <li>Xóa toàn bộ mã mặc định có sẵn đi, dán đoạn mã <b>code.gs</b> đã sao chép ở trên vào.</li>
+                    <li>Bấm nút <b>Triển khai (Deploy)</b> ở góc trên bên phải ➔ chọn <b>Triển khai mới (New deployment)</b>.</li>
+                    <li>Nhấp biểu tượng bánh răng ở loại cấu hình ➔ chọn <b>Ứng dụng Web (Web app)</b>:
+                      <ul className="list-disc list-inside pl-4 text-slate-500 mt-0.5 space-y-0.5">
+                        <li>Mô tả: Nhập <i>Báo cáo đo góc</i></li>
+                        <li>Chạy dưới dạng (Execute as): Chọn <b>Tôi (Tài khoản Google của bạn)</b>.</li>
+                        <li>Người có quyền truy cập (Who has access): Chọn <b>Ai cũng có quyền truy cập (Anyone)</b>.</li>
+                      </ul>
+                    </li>
+                    <li>Bấm nút <b>Triển khai</b> màu xanh. Hệ thống Google sẽ hiện hộp thoại yêu cầu cấp quyền truy cập, hãy chọn <b>Ủy quyền truy cập (Authorize Access)</b> ➔ Chọn email của bạn ➔ Chọn <b>Advanced</b> ➔ Click vào link <i>Go to ... (unsafe)</i> ➔ Bấm <b>Allow</b>.</li>
+                    <li>Sau khi chạy xong, Google sẽ cung cấp <b>"URL ứng dụng web" (Web App URL)</b> có đuôi kết thúc bằng <code>/exec</code>. Hãy sao chép liên kết đó dán vào ô <b>URL Ứng dụng Web</b> ở trên rồi bấm <b>Lưu URL</b> là xong!</li>
+                  </ol>
+
+                  <div className="mt-3 pt-2.5 border-t border-dashed border-slate-200">
+                    <span className="font-bold text-[10px] text-slate-400 block mb-1">Đoạn mã code.gs chi tiết:</span>
+                    <pre className="bg-slate-950 text-slate-300 p-2.5 rounded-lg text-[8.5px] font-mono whitespace-pre-wrap max-h-36 overflow-y-auto leading-normal text-left">
+                      {APPS_SCRIPT_CODE}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    setShowTeacherSettingsModal(false);
+                  }}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl cursor-pointer transition-all active:scale-95 shadow-sm"
+                >
+                  Xong, quay lại trò chơi
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
