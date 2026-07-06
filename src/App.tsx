@@ -185,15 +185,6 @@ export default function App() {
   };
 
   const badge = getBadgeTitle(score);
-  // ===== GỬI ĐIỂM GOOGLE SHEETS =====
-function guiDiem(ten: string, diem: number) {
-  const url = "https://script.google.com/macros/s/AKfycbyyhw4xuRrhy5zLjb2rgWuxfOaZBzUkBNQGiZ7Okn8reJYsnESwlEhSFwZQfLVdpBNQ/exec";
-
-  fetch(url + "?name=" + ten + "&score=" + diem, {
-    method: "GET",
-    mode: "no-cors"
-  });
-}
 
   // Tạo và sắp xếp bảng xếp hạng (chỉ chứa các tài khoản thật có điểm hoặc người chơi hiện tại)
   const getLeaderboard = (): LeaderboardItem[] => {
