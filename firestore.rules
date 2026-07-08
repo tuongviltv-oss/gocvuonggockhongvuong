@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Path Variable and Helper Functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidLeaderboardEntry(data) {
+      return data.keys().hasAll(['studentName', 'className', 'score', 'elapsedTime', 'timestamp'])
+        && data.keys().size() <= 6
+        && data.studentName is string
+        && data.studentName.size() > 0
+        && data.studentName.size() <= 100
+        && data.className is string
+        && data.className.size() > 0
+        && data.className.size() <= 50
+        && data.score is int
+        && data.score >= 0
+        && data.score <= 100000
+        && data.elapsedTime is int
+        && data.elapsedTime >= 0
+        && data.elapsedTime <= 1000000
+        && data.timestamp is string;
+    }
+
+    // 3. Leaderboard collection matching
+    match /leaderboard/{entryId} {
+      allow read: if true;
+      allow create: if isValidId(entryId) && isValidLeaderboardEntry(incoming());
+      allow update, delete: if false; // Prevent score tampering
+    }
+  }
+}

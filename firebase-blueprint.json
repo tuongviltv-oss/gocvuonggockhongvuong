@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "An entry representing a student's score and timing on the leaderboard",
+      "type": "object",
+      "properties": {
+        "studentName": {
+          "type": "string",
+          "description": "The name of the student"
+        },
+        "className": {
+          "type": "string",
+          "description": "The class of the student"
+        },
+        "score": {
+          "type": "integer",
+          "description": "The accumulated score of the student"
+        },
+        "elapsedTime": {
+          "type": "integer",
+          "description": "The elapsed time in seconds"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The ISO timestamp when the score was recorded"
+        },
+        "uid": {
+          "type": "string",
+          "description": "The Firebase User ID of the student (optional)"
+        }
+      },
+      "required": ["studentName", "className", "score", "elapsedTime", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/leaderboard/{entryId}": {
+      "schema": "LeaderboardEntry",
+      "description": "Collection of leaderboard entries"
+    }
+  }
+}
